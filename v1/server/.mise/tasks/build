@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Build the Docker container image"
+set -euo pipefail
+
+docker build -t game-server .
+

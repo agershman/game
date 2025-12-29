@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Build and run the game server container"
+#MISE depends=["build"]
+set -euo pipefail
+
+docker run --name game-server -it -p 0.0.0.0:8080:8080 -p 0.0.0.0:8181:8181 game-server

@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Race To Candy Mountain - Controller</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap');
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+
+    /* Entry screen */
+    #entry-screen {
+      text-align: center;
+      padding: 2rem;
+    }
+
+    #entry-screen h1 {
+      font-family: 'Fredoka One', cursive;
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      text-shadow: 3px 3px 0 rgba(0,0,0,0.2);
+    }
+
+    #entry-screen .subtitle {
+      font-size: 1rem;
+      opacity: 0.9;
+      margin-bottom: 2rem;
+    }
+
+    #entry-screen .unicorn-emoji {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+
+    #player-name-input {
+      font-family: 'Nunito', sans-serif;
+      font-size: 1.2rem;
+      padding: 1rem 1.5rem;
+      border: none;
+      border-radius: 50px;
+      width: 100%;
+      max-width: 280px;
+      text-align: center;
+      background: rgba(255,255,255,0.95);
+      color: #333;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      margin-bottom: 1.5rem;
+    }
+
+    #player-name-input::placeholder {
+      color: #999;
+    }
+
+    #player-name-input:focus {
+      outline: none;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3), 0 0 0 3px rgba(255,255,255,0.5);
+    }
+
+    #start-btn {
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.3rem;
+      padding: 1rem 3rem;
+      border: none;
+      border-radius: 50px;
+      background: linear-gradient(135deg, #f5af19 0%, #f12711 100%);
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    #start-btn:active {
+      transform: scale(0.95);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+
+    /* Controller screen */
+    #controller-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      height: 100%;
+      width: 100%;
+      padding: 2rem;
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.9rem;
+      background: rgba(0,0,0,0.2);
+      padding: 0.5rem 1rem;
+      border-radius: 50px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ff4444;
+      transition: background 0.3s;
+    }
+
+    .status-dot.connected {
+      background: #44ff44;
+      box-shadow: 0 0 10px #44ff44;
+    }
+
+    .player-info {
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.5rem;
+      text-shadow: 2px 2px 0 rgba(0,0,0,0.2);
+    }
+
+    /* Direction indicator */
+    .direction-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .direction-display {
+      position: relative;
+      width: 280px;
+      height: 280px;
+    }
+
+    .direction-arrow {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .direction-arrow:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    .direction-arrow.active {
+      background: rgba(255,255,255,0.9);
+      transform: scale(1.2);
+      box-shadow: 0 0 30px rgba(255,255,255,0.8);
+    }
+
+    .direction-arrow.north { top: 0; left: 50%; transform: translateX(-50%); }
+    .direction-arrow.south { bottom: 0; left: 50%; transform: translateX(-50%); }
+    .direction-arrow.east { right: 0; top: 50%; transform: translateY(-50%); }
+    .direction-arrow.west { left: 0; top: 50%; transform: translateY(-50%); }
+
+    .direction-arrow.north.active { transform: translateX(-50%) scale(1.2); }
+    .direction-arrow.south.active { transform: translateX(-50%) scale(1.2); }
+    .direction-arrow.east.active { transform: translateY(-50%) scale(1.2); }
+    .direction-arrow.west.active { transform: translateY(-50%) scale(1.2); }
+
+    .center-indicator {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+    }
+
+    .center-indicator.neutral {
+      background: rgba(255,255,255,0.2);
+    }
+
+    /* Tilt values (debug) */
+    .tilt-debug {
+      font-size: 0.75rem;
+      opacity: 0.6;
+      font-family: monospace;
+    }
+
+    /* Instructions */
+    .instructions {
+      text-align: center;
+      font-size: 0.9rem;
+      opacity: 0.8;
+      line-height: 1.5;
+    }
+
+    /* Error message */
+    .error-message {
+      background: rgba(255,0,0,0.3);
+      padding: 1rem;
+      border-radius: 10px;
+      text-align: center;
+      margin-top: 1rem;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Entry Screen -->
+  <div id="entry-screen">
+    <div class="unicorn-emoji">🦄</div>
+    <h1>Race To Candy Mountain</h1>
+    <p class="subtitle">Tilt Controller</p>
+    <input type="text" id="player-name-input" placeholder="Enter your name" maxlength="20" autocomplete="off">
+    <br>
+    <button id="start-btn">Start Playing</button>
+    <div id="error-msg" class="error-message"></div>
+  </div>
+
+  <!-- Controller Screen -->
+  <div id="controller-screen">
+    <div class="status-bar">
+      <div id="status-dot" class="status-dot"></div>
+      <span id="status-text">Connecting...</span>
+    </div>
+
+    <p class="player-info">🦄 <span id="player-display"></span></p>
+
+    <div class="direction-container">
+      <div class="direction-display">
+        <div id="arrow-north" class="direction-arrow north">⬆️</div>
+        <div id="arrow-south" class="direction-arrow south">⬇️</div>
+        <div id="arrow-east" class="direction-arrow east">➡️</div>
+        <div id="arrow-west" class="direction-arrow west">⬅️</div>
+        <div id="center" class="center-indicator neutral">🍬</div>
+      </div>
+    </div>
+
+    <p class="tilt-debug">
+      β: <span id="beta-val">0</span>° | γ: <span id="gamma-val">0</span>°
+    </p>
+
+    <p class="instructions">
+      Tilt your phone to move your unicorn!<br>
+      Hold the phone flat to stop.
+    </p>
+  </div>
+
+  <script>
+    // Configuration
+    const CONTROL_PORT = 8181;
+    const TILT_THRESHOLD = 15; // degrees
+    const SEND_INTERVAL = 100; // ms between sends (10 per second)
+
+    // State
+    let playerId = null;
+    let ws = null;
+    let currentDirection = null;
+    let sendIntervalId = null;
+    let isConnected = false;
+
+    // DOM elements
+    const entryScreen = document.getElementById('entry-screen');
+    const controllerScreen = document.getElementById('controller-screen');
+    const playerNameInput = document.getElementById('player-name-input');
+    const startBtn = document.getElementById('start-btn');
+    const errorMsg = document.getElementById('error-msg');
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    const playerDisplay = document.getElementById('player-display');
+    const betaVal = document.getElementById('beta-val');
+    const gammaVal = document.getElementById('gamma-val');
+    const arrowNorth = document.getElementById('arrow-north');
+    const arrowSouth = document.getElementById('arrow-south');
+    const arrowEast = document.getElementById('arrow-east');
+    const arrowWest = document.getElementById('arrow-west');
+    const centerIndicator = document.getElementById('center');
+
+    // Show error message
+    function showError(message) {
+      errorMsg.textContent = message;
+      errorMsg.style.display = 'block';
+    }
+
+    // Update connection status UI
+    function updateConnectionStatus(connected, message) {
+      isConnected = connected;
+      statusDot.classList.toggle('connected', connected);
+      statusText.textContent = message;
+    }
+
+    // Update direction indicators
+    function updateDirectionUI(direction) {
+      // Reset all arrows
+      arrowNorth.classList.remove('active');
+      arrowSouth.classList.remove('active');
+      arrowEast.classList.remove('active');
+      arrowWest.classList.remove('active');
+      centerIndicator.classList.toggle('neutral', direction === null);
+
+      // Activate current direction
+      if (direction === 'n') arrowNorth.classList.add('active');
+      else if (direction === 's') arrowSouth.classList.add('active');
+      else if (direction === 'e') arrowEast.classList.add('active');
+      else if (direction === 'w') arrowWest.classList.add('active');
+    }
+
+    // Send direction to server
+    function sendDirection(direction) {
+      if (ws && ws.readyState === WebSocket.OPEN && direction) {
+        const data = { id: playerId, dir: direction };
+        ws.send(JSON.stringify(data));
+      }
+    }
+
+    // Handle device orientation
+    function handleOrientation(event) {
+      const beta = event.beta;   // Front-back tilt: -180 to 180
+      const gamma = event.gamma; // Left-right tilt: -90 to 90
+
+      // Update debug display
+      betaVal.textContent = beta ? beta.toFixed(1) : '0';
+      gammaVal.textContent = gamma ? gamma.toFixed(1) : '0';
+
+      // Determine direction based on tilt
+      // Phone held in portrait, screen facing user
+      let newDirection = null;
+
+      // Check which axis has the stronger tilt
+      const absBeta = Math.abs(beta);
+      const absGamma = Math.abs(gamma);
+
+      if (absBeta > TILT_THRESHOLD || absGamma > TILT_THRESHOLD) {
+        if (absBeta > absGamma) {
+          // Front-back tilt is dominant
+          newDirection = beta > TILT_THRESHOLD ? 's' : (beta < -TILT_THRESHOLD ? 'n' : null);
+        } else {
+          // Left-right tilt is dominant
+          newDirection = gamma > TILT_THRESHOLD ? 'e' : (gamma < -TILT_THRESHOLD ? 'w' : null);
+        }
+      }
+
+      // Update UI and state
+      if (newDirection !== currentDirection) {
+        currentDirection = newDirection;
+        updateDirectionUI(currentDirection);
+      }
+    }
+
+    // Start continuous sending
+    function startSending() {
+      if (sendIntervalId) return;
+      sendIntervalId = setInterval(() => {
+        if (currentDirection) {
+          sendDirection(currentDirection);
+        }
+      }, SEND_INTERVAL);
+    }
+
+    // Stop continuous sending
+    function stopSending() {
+      if (sendIntervalId) {
+        clearInterval(sendIntervalId);
+        sendIntervalId = null;
+      }
+    }
+
+    // Request device orientation permission (required for iOS 13+)
+    async function requestOrientationPermission() {
+      if (typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try {
+          const permission = await DeviceOrientationEvent.requestPermission();
+          if (permission !== 'granted') {
+            throw new Error('Permission denied');
+          }
+        } catch (err) {
+          showError('Motion sensor permission denied. Please allow access and try again.');
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // Connect to WebSocket
+    function connectWebSocket() {
+      const host = '192.168.68.76';
+      const wsUrl = `ws://${host}:${CONTROL_PORT}`;
+
+      updateConnectionStatus(false, 'Connecting...');
+
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        updateConnectionStatus(true, 'Connected');
+        startSending();
+      };
+
+      ws.onclose = () => {
+        updateConnectionStatus(false, 'Disconnected');
+        stopSending();
+        // Try to reconnect after 2 seconds
+        setTimeout(connectWebSocket, 2000);
+      };
+
+      ws.onerror = (err) => {
+        console.error('WebSocket error:', err);
+        updateConnectionStatus(false, 'Connection error');
+      };
+    }
+
+    // Start the controller
+    async function startController() {
+      const name = playerNameInput.value.trim();
+      if (!name) {
+        showError('Please enter your name');
+        return;
+      }
+
+      playerId = name;
+      playerDisplay.textContent = name;
+
+      // Request motion permission (iOS requirement)
+      const hasPermission = await requestOrientationPermission();
+      if (!hasPermission) return;
+
+      // Check if DeviceOrientation is supported
+      if (!window.DeviceOrientationEvent) {
+        showError('Your device does not support motion sensors.');
+        return;
+      }
+
+      // Switch to controller screen
+      entryScreen.style.display = 'none';
+      controllerScreen.style.display = 'flex';
+
+      // Start listening to orientation
+      window.addEventListener('deviceorientation', handleOrientation);
+
+      // Connect to server
+      connectWebSocket();
+    }
+
+    // Event listeners
+    startBtn.addEventListener('click', startController);
+
+    playerNameInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        startController();
+      }
+    });
+
+    // Arrow click/touch handlers
+    let touchIntervalId = null;
+
+    function startArrowPress(direction) {
+      // Send immediately
+      sendDirection(direction);
+      updateDirectionUI(direction);
+      // Then continuously while held
+      touchIntervalId = setInterval(() => {
+        sendDirection(direction);
+      }, SEND_INTERVAL);
+    }
+
+    function stopArrowPress() {
+      if (touchIntervalId) {
+        clearInterval(touchIntervalId);
+        touchIntervalId = null;
+      }
+      updateDirectionUI(null);
+    }
+
+    // Setup arrow controls (works for both click and touch)
+    const arrowControls = [
+      { element: arrowNorth, direction: 'n' },
+      { element: arrowSouth, direction: 's' },
+      { element: arrowEast, direction: 'e' },
+      { element: arrowWest, direction: 'w' }
+    ];
+
+    arrowControls.forEach(({ element, direction }) => {
+      // Mouse events
+      element.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        startArrowPress(direction);
+      });
+
+      // Touch events
+      element.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        startArrowPress(direction);
+      });
+    });
+
+    // Stop on mouse/touch release (on document to catch releases outside element)
+    document.addEventListener('mouseup', stopArrowPress);
+    document.addEventListener('touchend', stopArrowPress);
+    document.addEventListener('touchcancel', stopArrowPress);
+
+    // Prevent scrolling/bouncing on mobile
+    document.body.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theme Name</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #33DBFF;
+      }
+
+      #board {
+        border: 1px solid black;
+      }
+
+      h1 {
+        color: purple;
+      }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script>
+      $(document).ready(function () {
+        // Audio unlock - require user interaction first
+        $('#start-overlay').on('click', function () {
+          // Hide the overlay
+          $(this).fadeOut();
+            audioGameStart.play();
+          });
+
+        //
+        // Board setup
+        //
+
+        var ws = new WebSocket('ws://localhost:8080');
+        var board = $('#board');
+        var boardWidth = board.width();
+        var boardHeight = board.height();
+        var ctx = board[0].getContext('2d');
+
+        var theme = 'unicorn';
+
+        //
+        // Title setup
+        //
+
+        if (theme === 'unicorn') {
+          var title = '🦄 Race To Candy Mountain 🦄';
+          $('title').text(title);
+          $('.game-title').text(title);
+        }
+
+        //
+        // Image setup
+        //
+
+        var imagePiece = new Image();
+        imagePiece.src = 'media/themes/' + theme + '/images/piece.png';
+
+        var imagePlayer1 = new Image();
+        imagePlayer1.src = 'media/themes/' + theme + '/images/player1.jpg';
+
+        var imagePlayer2 = new Image();
+        imagePlayer2.src = 'media/themes/' + theme + '/images/player2.jpg';
+
+        var imagePlayer3 = new Image();
+        imagePlayer3.src = 'media/themes/' + theme + '/images/player3.jpg';
+
+        var imagePlayer4 = new Image();
+        imagePlayer4.src = 'media/themes/' + theme + '/images/player4.jpg';
+
+        var imageGameOver = new Image();
+        imageGameOver.src = 'media/themes/' + theme + '/images/game-over.jpg';
+        $('#game-over-image').attr(imageGameOver.src);
+
+        var sprites = [imagePlayer1, imagePlayer2, imagePlayer3, imagePlayer4];
+        var playerSprites = {};
+
+        //
+        // Audio setup
+        //
+
+        var audioGameStart = new Audio('media/themes/' + theme + '/audio/game-start.mp3');
+        var audioHitEdge = new Audio('media/themes/' + theme + '/audio/hit-edge.mp3');
+        var audioHitPlayer = new Audio('media/themes/' + theme + '/audio/hit-player.wav');
+        var audioAwardedPoint = new Audio('media/themes/' + theme + '/audio/awarded-point.mp3');
+        var audioGameOver = new Audio('media/themes/' + theme + '/audio/game-over.mp3');
+
+        /**
+         * Clears the board for drawing the next frame.
+         */
+        function clearBoard() {
+          ctx.clearRect(0, 0, boardWidth, boardHeight);
+        }
+
+        /**
+         * Returns the sprite for the supplied player.
+         */
+        function getPlayerSprite(player) {
+          // Assign/obtain a sprite for the player
+          var sprite = playerSprites[player.id];
+          if (sprite === undefined) {
+            playerSprites[player.id] = sprites.pop();
+          }
+          return playerSprites[player.id];
+        }
+
+        /**
+         * Returns the sprite representing a point.
+         */
+        function getPointSprite() {
+          return imagePiece;
+        }
+
+        /**
+         * Draws the visual representation of the supplied player.
+         */
+        function drawPlayer(ctx, player) {
+          var sprite = getPlayerSprite(player);
+          if (sprite) {
+            ctx.drawImage(sprite, player.x, player.y);
+          }
+        }
+
+        /**
+         * Draws the visual representation of the supplied point.
+         */
+        function drawPoint(ctx, point) {
+          var sprite = getPointSprite();
+          if (sprite) {
+            ctx.drawImage(sprite, point.x, point.y);
+          }
+        }
+
+        /**
+         * Updates the visual position of the points on the board.
+         */
+        function updatePoints(points) {
+          if (points === null || points.length === 0) {
+            console.log('Received no points data from server.');
+            return;
+          }
+          for (var i = 0; i < points.length; i++) {
+            var point = points[i];
+            drawPoint(ctx, point);
+          }
+        }
+
+        /**
+         * Updates the visual position of the players on the board.
+         */
+        function updatePlayers(players) {
+          if (players === null || players.length === 0) {
+            console.log('Received no player data from server.');
+            return;
+          }
+          // Clear the board before drawing the frame
+          clearPlayerData();
+          for (var i = 0; i < players.length; i++) {
+            var player = players[i];
+
+            // Render the player sprite
+            drawPlayer(ctx, player);
+
+            // Render the player data
+            renderPlayerData(player);
+
+            // Play audio for pertinent game events
+            if (player.at_edge === true) {
+              audioHitEdge.play();
+            } else if (player.hit === true) {
+              audioHitPlayer.play();
+            } else if (player.awarded_point === true) {
+              audioAwardedPoint.play();
+            }
+          }
+        }
+
+        /**
+         * Clears the listed player data and scores.
+         */
+        function clearPlayerData() {
+          var playerTable = $('#player-table');
+          var tableBody = playerTable.find('tbody');
+          tableBody.empty();
+        }
+
+        /**
+         * Includes the supplied player's data and score
+         * in the listing of all player data.
+         */
+        function renderPlayerData(player) {
+          var playerTable = $('#player-table');
+          var tableBody = playerTable.find('tbody');
+          var tableRow = $('<tr>');
+          tableRow.append($('<td>').text(player.id));
+          tableRow.append($('<td>').text(player.score));
+          tableBody.append(tableRow);
+        }
+
+        /**
+         * Handles an opened connection against the game server.
+         */
+        ws.onopen = function () {
+          console.log('connected...');
+          // TODO: we can customize the board on the
+          //       server based on client parameters
+          // ws.send('hello server');
+        };
+
+        /**
+         * Handles game state changes received from the server.
+         */
+        ws.onmessage = function (evt) {
+          console.log(evt);
+
+          clearBoard();
+
+          if (evt.data === null || evt.data.trim().length === 0) {
+            console.log('Received no data from server.');
+            return;
+          }
+
+          var data = JSON.parse(evt.data);
+
+          var status = data.status;
+          if (status === 'started') {
+            // Game started or in progress
+            $('#game-over-panel').hide();
+            $('#game-console').show();
+            var board = data.board;
+            updatePoints(board.points);
+            updatePlayers(board.players);
+          } else {
+            // Game ended
+            $('#game-console').hide();
+            $('#game-over-panel').show();
+            audioGameOver.play();
+            var winner = data.winner;
+            $('#winner-id').text(winner.id);
+            $('#winner-score').text(winner.score);
+          }
+        };
+
+        /**
+         * Handles closing connection to game server.
+         */
+        ws.onclose = function () {
+          console.log('socket closed');
+        };
+      });
+    </script>
+  </head>
+  <body>
+    <center>
+      <!-- Start overlay -->
+      <div id="start-overlay" style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        cursor: pointer;
+      ">
+        <div style="text-align: center; color: white;">
+          <h1 class="game-title" style="font-size: 48pt; color: #33DBFF;">Game Title</h1>
+          <p style="font-size: 24pt;">Click anywhere to start!</p>
+        </div>
+      </div>
+      <!-- End overlay -->
+
+      <!-- Top banner -->
+      <h1 class="game-title">Game Title</h1>
+
+      <!-- Game console -->
+      <table id="game-console" border="0">
+        <tr>
+          <td width="50%">
+            <canvas id="board" width="800" height="600" style="background-color: #94A4D7;"></canvas>
+          </td>
+          <td valign="top" width="50%">
+            <fieldset>
+              <legend style="font-size: 20pt; color: purple;">PLAYERS</legend>
+              <table id="player-table" border="0" cellpadding="3" cellspacing="0" width="100%" style="font-size: 16pt; background-color: #94A4D7; color: #FFFFFF;">
+                <thead>
+                  <tr style="color: #000000;">
+                    <th>Name</th>
+                    <th>Score</th>
+                  </tr>
+                </thead>
+                <tbody align="center">
+                </tbody>
+              </table>
+            </fieldset>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Game over panel -->
+      <div id="game-over-panel" style="display: none; font-size: 24pt;">
+        <p style="border: 3px solid purple; width: 75%; padding: 10px;">
+          The winner with <span id="winner-score" style="color: green;"></span> points is <span id="winner-id" style="color: green;"></span>!
+        </p>
+        <img id="game-over-image" alt="Game Over">
+      </div>
+    </center>
+  </body>
+</html>

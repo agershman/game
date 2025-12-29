@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Simulate a phone controller"
+set -euo pipefail
+
+docker exec game-server ruby phone.rb -i 1 "$@"
